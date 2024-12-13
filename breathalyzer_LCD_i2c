@@ -1,0 +1,78 @@
+// South Africa the legal blood alcohol content (BAC) limit for drivers is 0.05 grams per 100 milliliters of blood.
+// Include necessary libraries
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Define LCD parameters
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Adjust I2C address if needed
+
+// Define sensor pin
+#define SENSOR_PIN A0
+
+// Threshold for legal BAC (converted to sensor output value, calibration needed)
+float legalBAC = 0.05; // BAC limit in %
+float sensorThreshold = 0.50; // Equivalent breath alcohol concentration in mg/L
+
+// Moving average variables
+float smoothedValue = 0.0;
+float smoothingFactor = 0.9; // Higher value means more smoothing
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+  Wire.begin(D2, D1);
+  // Initialize LCD
+  lcd.begin(16, 2); // Properly initialize LCD with size parameters
+  lcd.backlight();
+
+  // Display startup message
+  lcd.setCursor(0, 0);
+  lcd.print("Drinking Test");
+  lcd.setCursor(0, 1);
+  lcd.print("Initializing...");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  // Read sensor value
+  int sensorValue = analogRead(SENSOR_PIN);
+
+  // Debug raw sensor value
+  Serial.print("Raw Value: ");
+  Serial.println(sensorValue);
+
+  // Convert sensor value to approximate BAC (calibration required)
+  float voltage = sensorValue * (3.3 / 1023.0); // Convert to voltage
+  Serial.print("Voltage: ");
+  Serial.println(voltage, 3); // Print voltage to 3 decimal places
+
+  float breathAlcohol = voltage * (5.0 / 3.3); // Example conversion factor
+
+  // Apply smoothing to the calculated BAC
+  smoothedValue = (smoothedValue * smoothingFactor) + (breathAlcohol * (1 - smoothingFactor));
+  Serial.print("Smoothed Breath Alcohol (mg/L): ");
+  Serial.println(smoothedValue, 3); // Print smoothed BAC to 3 decimal places
+
+  // Check if BAC exceeds legal limit
+  lcd.setCursor(0, 0);
+  lcd.print("BAC: ");
+  lcd.print(smoothedValue, 2);
+  lcd.print(" mg/L");
+
+  if (smoothedValue > sensorThreshold) {
+    lcd.setCursor(0, 1);
+    lcd.print("Over Limit! DONT");
+    delay(2000);
+    lcd.setCursor(0, 1);
+    lcd.print("DRIVE!        ");
+    Serial.println("Over Limit!");
+  } else {
+    lcd.setCursor(0, 1);
+    lcd.print("You are OK    ");
+    Serial.println("Under Limit!");
+    Serial.println("Idle state detected.");
+  }
+
+  delay(3000); // Wait before next reading
+}
